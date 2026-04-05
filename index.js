@@ -12,36 +12,40 @@ app.post('/webhook', async (req, res) => {
     return res.status(200).send('OK');
   }
 
-  // ✅ ตอบทันที (กัน timeout)
+  // ✅ กัน timeout (สำคัญมาก)
   res.status(200).send('OK');
 
   for (const event of events) {
     if (event.type === 'message' && event.message.type === 'text') {
       const replyToken = event.replyToken;
 
-      await axios.post(
-        'https://api.line.me/v2/bot/message/reply',
-        {
-          replyToken: replyToken,
-          messages: [
-            {
-              type: 'text',
-              text: 'ติดแล้ว 🔥'
+      try {
+        await axios.post(
+          'https://api.line.me/v2/bot/message/reply',
+          {
+            replyToken: replyToken,
+            messages: [
+              {
+                type: 'text',
+                text: 'ติดแล้ว 🔥'
+              }
+            ]
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json'
             }
-          ]
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-            'Content-Type': 'application/json'
           }
-        }
-      );
+        );
+      } catch (err) {
+        console.error('LINE ERROR:', err.response?.data || err.message);
+      }
     }
   }
 });
 
-// 🔥 สำคัญมาก (เปิด server)
+// 🔥 เปิด server (ห้ามหายเด็ดขาด)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Server is running on port ' + PORT);
