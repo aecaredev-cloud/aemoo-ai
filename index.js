@@ -1,42 +1,48 @@
-import axios from "axios";
+const express = require('express');
+const axios = require('axios');
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(200).send("OK");
-  }
+const app = express();
+app.use(express.json());
 
+// 🔥 Webhook
+app.post('/webhook', async (req, res) => {
   const events = req.body.events;
 
   if (!events || events.length === 0) {
-    return res.status(200).send("OK");
+    return res.status(200).send('OK');
   }
 
-  // ✅ ตอบ LINE ทันทีก่อน (กัน timeout)
-  res.status(200).send("OK");
+  // ✅ ตอบทันที (กัน timeout)
+  res.status(200).send('OK');
 
   for (const event of events) {
-    if (event.type === "message" && event.message.type === "text") {
+    if (event.type === 'message' && event.message.type === 'text') {
       const replyToken = event.replyToken;
-      const userText = event.message.text;
 
       await axios.post(
-        "https://api.line.me/v2/bot/message/reply",
+        'https://api.line.me/v2/bot/message/reply',
         {
           replyToken: replyToken,
           messages: [
             {
-              type: "text",
-              text: "ติดแล้ว 🔥",
-            },
-          ],
+              type: 'text',
+              text: 'ติดแล้ว 🔥'
+            }
+          ]
         },
         {
           headers: {
             Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
+            'Content-Type': 'application/json'
+          }
         }
       );
     }
   }
-}
+});
+
+// 🔥 สำคัญมาก (เปิด server)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('Server is running on port ' + PORT);
+});
