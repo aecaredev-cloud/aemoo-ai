@@ -4,49 +4,82 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-// 🔥 Webhook
-app.post('/webhook', async (req, res) => {
-  const events = req.body.events;
+const LINE_TOKEN = process.env.LINE_ACCESS_TOKEN;
 
-  if (!events || events.length === 0) {
-    return res.status(200).send('OK');
-  }
-
-  // ✅ กัน timeout (สำคัญมาก)
-  res.status(200).send('OK');
-
-  for (const event of events) {
-    if (event.type === 'message' && event.message.type === 'text') {
-      const replyToken = event.replyToken;
-
-      try {
-        await axios.post(
-          'https://api.line.me/v2/bot/message/reply',
-          {
+// ==============================
+// 🔥 ฟังก์ชัน reply (ตอบทันที)
+// ==============================
+async function replyToLine(replyToken, text) {
+    await axios.post(
+        'https://api.line.me/v2/bot/message/reply',
+        {
             replyToken: replyToken,
-            messages: [
-              {
-                type: 'text',
-                text: 'ติดแล้ว 🔥'
-              }
-            ]
-          },
-          {
+            messages: [{ type: 'text', text: text }]
+        },
+        {
             headers: {
-              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-              'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${LINE_TOKEN}`
             }
-          }
-        );
-      } catch (err) {
-        console.error('LINE ERROR:', err.response?.data || err.message);
-      }
+        }
+    );
+}
+
+// ==============================
+// 🔥 ฟังก์ชัน push (ตอบทีหลัง)
+// ==============================
+async function pushToLine(userId, text) {
+    await axios.post(
+        'https://api.line.me/v2/bot/message/push',
+        {
+            to: userId,
+            messages: [{ type: 'text', text: text }]
+        },
+        {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${LINE_TOKEN}`
+            }
+        }
+    );
+}
+
+// ==============================
+// 🔥 webhook หลัก
+// ==============================
+app.post('/webhook', async (req, res) => {
+    res.sendStatus(200);
+
+    const events = req.body.events;
+
+    for (const event of events) {
+        if (event.type === 'message' && event.message.type === 'text') {
+
+            const replyToken = event.replyToken;
+            const userId = event.source.userId;
+            const userText = event.message.text;
+
+            try {
+                // ✅ ตอบทันที (กัน replyToken หมดอายุ)
+                await replyToLine(replyToken, "กำลังดูดวงให้อยู่นะ 🔮");
+
+                // ✅ จำลอง AI (เดี๋ยวค่อยต่อ OpenAI ทีหลัง)
+                const aiText = `คุณพิมพ์ว่า: ${userText}`;
+
+                // ✅ push ตอบจริง
+                await pushToLine(userId, aiText);
+
+            } catch (err) {
+                console.log("ERROR:", err.response?.data || err.message);
+            }
+        }
     }
-  }
 });
 
-// 🔥 เปิด server (ห้ามหายเด็ดขาด)
+// ==============================
+// start server
+// ==============================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('Server is running on port ' + PORT);
+    console.log("Server running on port", PORT);
 });
