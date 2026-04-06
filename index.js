@@ -6,15 +6,13 @@ app.use(express.json());
 
 const LINE_TOKEN = process.env.LINE_ACCESS_TOKEN;
 
-// ==============================
-// 🔥 ฟังก์ชัน reply (ตอบทันที)
-// ==============================
-async function replyToLine(replyToken, text) {
+// ===== reply =====
+async function reply(replyToken, text) {
     await axios.post(
         'https://api.line.me/v2/bot/message/reply',
         {
-            replyToken: replyToken,
-            messages: [{ type: 'text', text: text }]
+            replyToken,
+            messages: [{ type: 'text', text }]
         },
         {
             headers: {
@@ -25,61 +23,49 @@ async function replyToLine(replyToken, text) {
     );
 }
 
-// ==============================
-// 🔥 ฟังก์ชัน push (ตอบทีหลัง)
-// ==============================
-async function pushToLine(userId, text) {
-    await axios.post(
-        'https://api.line.me/v2/bot/message/push',
-        {
-            to: userId,
-            messages: [{ type: 'text', text: text }]
-        },
-        {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${LINE_TOKEN}`
-            }
-        }
-    );
-}
-
-// ==============================
-// 🔥 webhook หลัก
-// ==============================
+// ===== webhook =====
 app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
 
-    const events = req.body.events;
+    const events = req.body.events || [];
 
     for (const event of events) {
         if (event.type === 'message' && event.message.type === 'text') {
-
             const replyToken = event.replyToken;
-            const userId = event.source.userId;
             const userText = event.message.text;
 
             try {
-                // ✅ ตอบทันที (กัน replyToken หมดอายุ)
-                await replyToLine(replyToken, "กำลังดูดวงให้อยู่นะ 🔮");
+                const aiRes = await axios.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    {
+                        model: "gpt-4o-mini",
+                        messages: [
+                            { role: "system", content: "คุณคือหมอดูไทย ให้คำทำนายแม่น นิ่ง ลึก ไม่ถามคำถามกลับ" },
+                            { role: "user", content: userText }
+                        ]
+                    },
+                    {
+                        headers: {
+                            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                            "Content-Type": "application/json"
+                        }
+                    }
+                );
 
-                // ✅ จำลอง AI (เดี๋ยวค่อยต่อ OpenAI ทีหลัง)
-                const aiText = `คุณพิมพ์ว่า: ${userText}`;
+                const aiText = aiRes.data.choices[0].message.content;
 
-                // ✅ push ตอบจริง
-                await pushToLine(userId, aiText);
+                await reply(replyToken, aiText);
 
             } catch (err) {
-                console.log("ERROR:", err.response?.data || err.message);
+                console.log(err.response?.data || err.message);
+                await reply(replyToken, "ระบบขัดข้องชั่วคราว");
             }
         }
     }
 });
 
-// ==============================
-// start server
-// ==============================
+// ===== start =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log("Server running on port", PORT);
+    console.log("Server running");
 });
