@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 // =============================
-// 🔥 MAHABOTE ENGINE (ง่ายก่อน)
+// 🔥 MAHABOTE ENGINE
 // =============================
 
 function generateRow(start) {
@@ -22,6 +22,7 @@ function calculateMahabote(day, month, yearBE) {
   const row4 = row1.map((v, i) => v + row2[i] + row3[i]);
 
   return {
+    input: { day, month, yearBE },
     row1,
     row2,
     row3,
@@ -30,20 +31,44 @@ function calculateMahabote(day, month, yearBE) {
 }
 
 // =============================
+// 🔥 PARSE วันเกิดจากข้อความ
+// =============================
+
+function parseBirth(text) {
+  const match = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (match) {
+    return {
+      day: parseInt(match[1]),
+      month: parseInt(match[2]),
+      year: parseInt(match[3])
+    };
+  }
+  return null;
+}
+
+// =============================
 // 🔥 AI CALL
 // =============================
 
 async function askAI(userText, mahabote) {
   const prompt = `
-คุณคือหมอดูไทยระดับสูง ใช้ข้อมูลนี้เท่านั้นในการทำนาย ห้ามมั่ว
+คุณคือหมอดูไทยระดับสูง ใช้ศาสตร์มหาโหร (Mahabote)
 
-ข้อมูลดวง:
-${JSON.stringify(mahabote)}
+ห้ามมั่ว ห้ามเดา
+ต้องอ้างอิงข้อมูลนี้เท่านั้น:
 
-คำถาม:
+${JSON.stringify(mahabote, null, 2)}
+
+คำถามของผู้ใช้:
 ${userText}
 
-ให้ทำนายแบบมืออาชีพ อิงข้อมูลจริงเท่านั้น
+ให้วิเคราะห์เป็น:
+- พื้นดวง
+- การงาน
+- การเงิน
+- คำแนะนำ
+
+เขียนแบบมืออาชีพ กระชับ น่าเชื่อถือ
 `;
 
   const res = await axios.post(
@@ -100,8 +125,18 @@ app.post("/webhook", async (req, res) => {
       console.log("📩", userText);
 
       try {
-        // 🔥 DEMO INPUT (เดี๋ยวค่อยทำ dynamic)
-        const mahabote = calculateMahabote(3, 5, 2530);
+        const birth = parseBirth(userText);
+
+        if (!birth) {
+          await reply(replyToken, "กรุณาพิมพ์วันเกิด เช่น 14/03/2530");
+          continue;
+        }
+
+        const mahabote = calculateMahabote(
+          birth.day,
+          birth.month,
+          birth.year
+        );
 
         const aiText = await askAI(userText, mahabote);
 
