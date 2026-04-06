@@ -25,6 +25,7 @@ async function reply(replyToken, text) {
 
 // ===== webhook =====
 app.post('/webhook', async (req, res) => {
+    console.log("🔥 webhook เข้าแล้ว");
     res.sendStatus(200);
 
     const events = req.body.events || [];
