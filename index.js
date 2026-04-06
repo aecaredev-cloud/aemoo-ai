@@ -26,14 +26,18 @@ async function reply(replyToken, text) {
 // ===== webhook =====
 app.post('/webhook', async (req, res) => {
     console.log("🔥 webhook เข้าแล้ว");
+
     res.sendStatus(200);
 
     const events = req.body.events || [];
 
     for (const event of events) {
         if (event.type === 'message' && event.message.type === 'text') {
+
             const replyToken = event.replyToken;
             const userText = event.message.text;
+
+            console.log("📩 message:", userText);
 
             try {
                 const aiRes = await axios.post(
@@ -41,7 +45,7 @@ app.post('/webhook', async (req, res) => {
                     {
                         model: "gpt-4o-mini",
                         messages: [
-                            { role: "system", content: "คุณคือหมอดูไทย ให้คำทำนายแม่น นิ่ง ลึก ไม่ถามคำถามกลับ" },
+                            { role: "system", content: "คุณคือหมอดูไทย วิเคราะห์แม่น ตรง ไม่ถามคำถามกลับ" },
                             { role: "user", content: userText }
                         ]
                     },
@@ -58,7 +62,7 @@ app.post('/webhook', async (req, res) => {
                 await reply(replyToken, aiText);
 
             } catch (err) {
-                console.log(err.response?.data || err.message);
+                console.log("❌ ERROR:", err.response?.data || err.message);
                 await reply(replyToken, "ระบบขัดข้องชั่วคราว");
             }
         }
@@ -68,5 +72,5 @@ app.post('/webhook', async (req, res) => {
 // ===== start =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log("Server running");
+    console.log("🚀 Server running");
 });
